@@ -107,18 +107,18 @@ Add all three:
 
 ### `/thanks`
 - **Command:** `/thanks`
-- **Request URL:** `https://YOUR-VERCEL-URL.vercel.app/api/slack`
+- **Request URL:** `https://speedradio-gratitude-h4cfcy8hp-renuka-sajjans-projects.vercel.app/api/slack`
 - **Short Description:** Thank your teammates and give karma
 - **Usage Hint:** `@person [and @others] for reason`
 
 ### `/gratitude-board`
 - **Command:** `/gratitude-board`
-- **Request URL:** `https://YOUR-VERCEL-URL.vercel.app/api/slack`
+- **Request URL:** `https://speedradio-gratitude-h4cfcy8hp-renuka-sajjans-projects.vercel.app/api/slack`
 - **Short Description:** View the monthly gratitude leaderboard
 
 ### `/my-karma`
 - **Command:** `/my-karma`
-- **Request URL:** `https://YOUR-VERCEL-URL.vercel.app/api/slack`
+- **Request URL:** `https://speedradio-gratitude-h4cfcy8hp-renuka-sajjans-projects.vercel.app/api/slack`
 - **Short Description:** Check your karma balance and stats
 
 2. Click **Save** after each command
