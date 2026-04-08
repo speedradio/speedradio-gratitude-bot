@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "crons": [
+    {
+      "path": "/api/cron-monthly",
+      "schedule": "0 9 1 * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" }
+      ]
+    }
+  ]
+}
