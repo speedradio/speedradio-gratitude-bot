@@ -6,7 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "setup:local": "node scripts/setup-local.mjs",
+    "env:pull": "vercel env pull .env.local",
+    "tunnel": "npx --yes ngrok@latest http 3000"
   },
   "dependencies": {
     "@vercel/kv": "^2.0.0"

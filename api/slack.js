@@ -18,24 +18,31 @@ export default async function handler(req, res) {
 
   const { command, text, user_id, user_name, channel_id } = payload;
 
-  // Acknowledge Slack immediately (must respond within 3s)
-  res.status(200).json({ response_type: 'ephemeral', text: '⏳ Processing...' });
-
   try {
+    let slashResponse;
     if (command === '/thanks') {
-      await handleThanks({ text, user_id, user_name, channel_id });
+      slashResponse = await handleThanks({ text, user_id, user_name });
     } else if (command === '/gratitude-board') {
-      await handleLeaderboard({ user_id, channel_id });
+      slashResponse = await handleLeaderboard({ user_id });
     } else if (command === '/my-karma') {
-      await handleBalance({ user_id, channel_id });
+      slashResponse = await handleBalance({ user_id });
+    } else {
+      slashResponse = {
+        response_type: 'ephemeral',
+        text: `Unknown command: ${command || '(empty)'}`,
+      };
     }
+    return res.status(200).json(slashResponse);
   } catch (err) {
     console.error('Handler error:', err);
-    await postToSlack(channel_id, { text: `❌ Something went wrong: ${err.message}` });
+    return res.status(200).json({
+      response_type: 'ephemeral',
+      text: `❌ Something went wrong: ${err.message}`,
+    });
   }
 }
 
-async function handleThanks({ text, user_id, user_name, channel_id }) {
+async function handleThanks({ text, user_id, user_name }) {
   // Parse: /thanks @alice @bob for fixing the deploy
   const mentionRegex = /<@([A-Z0-9]+)(?:\|[^>]+)?>/g;
   const recipients = [];
@@ -45,18 +52,19 @@ async function handleThanks({ text, user_id, user_name, channel_id }) {
   }
 
   if (recipients.length === 0) {
-    await postToSlack(channel_id, {
-      text: '❌ Please mention at least one person. Usage: `/thanks @alice for saving the deploy! 🚀`',
+    return {
       response_type: 'ephemeral',
-    });
-    return;
+      text: '❌ Please mention at least one person. Usage: `/thanks @alice for saving the deploy! 🚀`',
+    };
   }
 
   // Remove self-thanks
   const filteredRecipients = recipients.filter(r => r !== user_id);
   if (filteredRecipients.length === 0) {
-    await postToSlack(channel_id, { text: "😅 You can't thank yourself! Try thanking a teammate.", response_type: 'ephemeral' });
-    return;
+    return {
+      response_type: 'ephemeral',
+      text: "😅 You can't thank yourself! Try thanking a teammate.",
+    };
   }
 
   // Check karma balance
@@ -65,28 +73,31 @@ async function handleThanks({ text, user_id, user_name, channel_id }) {
   const totalCost = filteredRecipients.length * karmaPerPerson;
 
   if (sender.karma_balance < totalCost) {
-    await postToSlack(channel_id, {
-      text: `💸 You don't have enough karma to send! Balance: *${sender.karma_balance}* karma. You need *${totalCost}*.`,
+    return {
       response_type: 'ephemeral',
-    });
-    return;
+      text: `💸 You don't have enough karma to send! Balance: *${sender.karma_balance}* karma. You need *${totalCost}*.`,
+    };
+  }
+
+  const gratitudeChannel = process.env.GRATITUDE_CHANNEL_ID;
+  if (!gratitudeChannel) {
+    return {
+      response_type: 'ephemeral',
+      text: '❌ This workspace is missing the GRATITUDE_CHANNEL_ID setting. Ask an admin to configure the bot on the server.',
+    };
   }
 
   // Extract the reason (text after all mentions)
   const reason = text.replace(/<@[A-Z0-9]+(?:\|[^>]+)?>/g, '').replace(/^\s*(for\s+)?/i, '').trim();
 
-  // Process each recipient
-  const recipientData = [];
   for (const recipientId of filteredRecipients) {
-    const recipient = await db.getOrCreateUser(recipientId);
+    await db.getOrCreateUser(recipientId);
     await db.recordThanks({
       sender_id: user_id,
       recipient_id: recipientId,
       reason,
       karma_given: karmaPerPerson,
     });
-    const updated = await db.getOrCreateUser(recipientId);
-    recipientData.push({ id: recipientId, karma_received: updated.karma_received });
   }
 
   // Deduct sender karma
@@ -95,8 +106,6 @@ async function handleThanks({ text, user_id, user_name, channel_id }) {
 
   const updatedSender = await db.getOrCreateUser(user_id);
 
-  // Post animated thank-you to gratitude channel
-  const gratitudeChannel = process.env.GRATITUDE_CHANNEL_ID;
   const message = buildThanksMessage({
     sender_id: user_id,
     sender_name: user_name,
@@ -106,19 +115,22 @@ async function handleThanks({ text, user_id, user_name, channel_id }) {
   });
 
   await postToSlack(gratitudeChannel, message);
+
+  return {
+    response_type: 'ephemeral',
+    text: `✅ Posted to <#${gratitudeChannel}> — thanks for spreading gratitude!`,
+  };
 }
 
-async function handleLeaderboard({ user_id, channel_id }) {
+async function handleLeaderboard({ user_id }) {
   const topUsers = await db.getLeaderboard(10);
   const currentUser = await db.getOrCreateUser(user_id);
-  const message = buildLeaderboardMessage(topUsers, currentUser, user_id);
-  await postToSlack(channel_id, message);
+  return buildLeaderboardMessage(topUsers, currentUser, user_id);
 }
 
-async function handleBalance({ user_id, channel_id }) {
+async function handleBalance({ user_id }) {
   const user = await db.getOrCreateUser(user_id);
-  const message = buildBalanceMessage(user);
-  await postToSlack(channel_id, message);
+  return buildBalanceMessage(user);
 }
 
 async function getRawBody(req) {
