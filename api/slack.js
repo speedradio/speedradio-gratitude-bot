@@ -52,6 +52,11 @@ async function handleThanks({ text, user_id, user_name }) {
   }
 
   if (recipients.length === 0) {
+    console.warn('Invalid /thanks command: missing recipient mention', {
+      sender_id: user_id,
+      sender_name: user_name,
+      text,
+    });
     return {
       response_type: 'ephemeral',
       text: '❌ Please mention at least one person. Usage: `/thanks @alice for saving the deploy! 🚀`',
