@@ -45,6 +45,7 @@ export default async function handler(req, res) {
 async function handleThanks({ text, user_id, user_name }) {
   // Parse: /thanks @alice @bob for fixing the deploy
   const mentionRegex = /<@([A-Z0-9]+)(?:\|[^>]+)?>/g;
+  const plainMentionRegex = /(^|\s)@([a-z0-9._-]+)/gi;
   const recipients = [];
   let match;
   while ((match = mentionRegex.exec(text)) !== null) {
@@ -52,14 +53,19 @@ async function handleThanks({ text, user_id, user_name }) {
   }
 
   if (recipients.length === 0) {
+    const plainMentions = Array.from(text.matchAll(plainMentionRegex), m => m[2]);
     console.warn('Invalid /thanks command: missing recipient mention', {
       sender_id: user_id,
       sender_name: user_name,
       text,
+      plain_mentions: plainMentions,
     });
+    const hasPlainMention = plainMentions.length > 0;
     return {
       response_type: 'ephemeral',
-      text: '❌ Please mention at least one person. Usage: `/thanks @alice for saving the deploy! 🚀`',
+      text: hasPlainMention
+        ? '❌ I can see `@name` text, but Slack did not send a resolvable user mention. Please select a teammate from Slack mention autocomplete (so it becomes a true mention), then try again.'
+        : '❌ Please mention at least one person. Usage: `/thanks @alice for saving the deploy! 🚀`',
     };
   }
 
