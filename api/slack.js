@@ -1,7 +1,7 @@
 import { verifySlackRequest, parseSlashCommand } from '../lib/slack-verify.js';
 import { db } from '../lib/db.js';
 import { buildThanksMessage, buildLeaderboardMessage, buildBalanceMessage } from '../lib/messages.js';
-import { postToSlack } from '../lib/slack-client.js';
+import { postToSlack, resolveUserIdsFromMentions } from '../lib/slack-client.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -54,6 +54,24 @@ async function handleThanks({ text, user_id, user_name }) {
 
   if (recipients.length === 0) {
     const plainMentions = Array.from(text.matchAll(plainMentionRegex), m => m[2]);
+    if (plainMentions.length > 0) {
+      const { resolvedUserIds, unresolvedMentions } = await resolveUserIdsFromMentions(plainMentions);
+      if (resolvedUserIds.length > 0) {
+        recipients.push(...resolvedUserIds);
+        console.info('Resolved plain @mentions in /thanks', {
+          sender_id: user_id,
+          sender_name: user_name,
+          text,
+          plain_mentions: plainMentions,
+          resolved_user_ids: resolvedUserIds,
+          unresolved_mentions: unresolvedMentions,
+        });
+      }
+    }
+  }
+
+  if (recipients.length === 0) {
+    const plainMentions = Array.from(text.matchAll(plainMentionRegex), m => m[2]);
     console.warn('Invalid /thanks command: missing recipient mention', {
       sender_id: user_id,
       sender_name: user_name,
@@ -99,7 +117,11 @@ async function handleThanks({ text, user_id, user_name }) {
   }
 
   // Extract the reason (text after all mentions)
-  const reason = text.replace(/<@[A-Z0-9]+(?:\|[^>]+)?>/g, '').replace(/^\s*(for\s+)?/i, '').trim();
+  const reason = text
+    .replace(/<@[A-Z0-9]+(?:\|[^>]+)?>/g, '')
+    .replace(/(^|\s)@[a-z0-9._-]+/gi, ' ')
+    .replace(/^\s*(for\s+)?/i, '')
+    .trim();
 
   for (const recipientId of filteredRecipients) {
     await db.getOrCreateUser(recipientId);
