@@ -55,17 +55,34 @@ async function handleThanks({ text, user_id, user_name }) {
   if (recipients.length === 0) {
     const plainMentions = Array.from(text.matchAll(plainMentionRegex), m => m[2]);
     if (plainMentions.length > 0) {
-      const { resolvedUserIds, unresolvedMentions } = await resolveUserIdsFromMentions(plainMentions);
-      if (resolvedUserIds.length > 0) {
-        recipients.push(...resolvedUserIds);
-        console.info('Resolved plain @mentions in /thanks', {
-          sender_id: user_id,
-          sender_name: user_name,
-          text,
-          plain_mentions: plainMentions,
-          resolved_user_ids: resolvedUserIds,
-          unresolved_mentions: unresolvedMentions,
-        });
+      try {
+        const { resolvedUserIds, unresolvedMentions } = await resolveUserIdsFromMentions(plainMentions);
+        if (resolvedUserIds.length > 0) {
+          recipients.push(...resolvedUserIds);
+          console.info('Resolved plain @mentions in /thanks', {
+            sender_id: user_id,
+            sender_name: user_name,
+            text,
+            plain_mentions: plainMentions,
+            resolved_user_ids: resolvedUserIds,
+            unresolved_mentions: unresolvedMentions,
+          });
+        }
+      } catch (err) {
+        const errorMessage = String(err?.message || '');
+        if (errorMessage.includes('missing_scope')) {
+          console.warn('Unable to resolve plain @mentions: missing Slack scope', {
+            sender_id: user_id,
+            sender_name: user_name,
+            text,
+            plain_mentions: plainMentions,
+          });
+          return {
+            response_type: 'ephemeral',
+            text: '❌ I detected `@name`, but this app cannot resolve usernames yet (`users:read` scope missing). Ask an admin to either enable user/link escaping in the slash command config (preferred) or add `users:read` to the bot token scopes, then reinstall the app.',
+          };
+        }
+        throw err;
       }
     }
   }
