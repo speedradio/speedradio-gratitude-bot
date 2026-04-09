@@ -9,7 +9,7 @@
 - Everyone starts with **50 karma** per month. Karma resets on the 1st.
 
 ---
-
+##shashi
 ## Step 1 — Create Your Slack App
 
 1. Go to **https://api.slack.com/apps** and click **"Create New App"**
